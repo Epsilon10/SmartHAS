@@ -10,6 +10,12 @@ import motor.motor_asyncio
 import aiohttp
 from forms import SignUpForm
 app = Sanic(__name__)
+<<<<<<< HEAD
+=======
+#STATIC_FOLDER = os.path.join(os.path.dirname(__file__), 'static')
+client = motor.motor_asyncio.AsyncIOMotorClient('mongodb://oommenb:<password>@smarthas-shard-00-00-mxxin.mongodb.net:27017,smarthas-shard-00-01-mxxin.mongodb.net:27017,smarthas-shard-00-02-mxxin.mongodb.net:27017/test?ssl=true&replicaSet=SmartHAS-shard-0&authSource=admin')
+db = client.user_details
+>>>>>>> 415d0d90bfeb57c6aeef4cafafab14cb1740a403
 
 app.config['SECRET_KEY'] = 'top secret !!!'
 
