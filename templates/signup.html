@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title></title>
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta.3/css/bootstrap.min.css" integrity="sha384-Zug+QiDoJOrZ5t4lssLdxGhVrurbmBWopoEl+M6BdEfwnCJZtKxi1KgxUyJq13dy" crossorigin="anonymous">
+  <script src="static/js/signup.js"></script>
+
+</head>
+<body>
+<form name="SignupForm" style="padding-top: 50px;" method="post" onsubmit="return SignUpValidate()" novalidate>
+  <div class="row justify-content-center">
+    <div class="col-lg-8 col-md-10 col-sm-12">
+      <div class="card">
+        <div class="card-body">
+          <h3 class="card-title">Sign up</h3>
+            <div class="form-group">
+              <label for="exampleInputEmail1">Email address</label>
+              <input type="email" class="form-control" id="exampleInputEmail1" placeholder="Email" name = "Email">
+              <span class="help-block" id="email-help">Must be in the form name@example.com.</span>
+            </div>
+            <div class="form-group">
+              <label for="exampleInputPassword1">Password</label>
+              <input type="password" class="form-control" id="exampleInputPassword1" placeholder="Password" name = "password">
+              <span class="help-block" id="password-help">Must be at least 6 characters long.</span>
+            </div>
+            <div class="form-group">
+              <label for="exampleInputPassword1">Confirm Password</label>
+              <input type="password" class="form-control" id="confirmPassword" placeholder="Confirm Password" name = "confirmPassword">
+            </div>
+            <button type="submit" class="btn btn-success" id="login-submit-button">Submit</button>
+        </div>
+        <div class="card-footer text-muted text-center">
+          Already have an account? <a href="/login">Log in</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</form>
+</body>
+</html>
