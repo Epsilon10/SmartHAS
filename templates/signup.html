@@ -1,3 +1,5 @@
+{% import 'macros.html' as macros %}
+
 <!DOCTYPE html>
 <html>
 <head>
@@ -13,11 +15,8 @@
       <div class="card">
         <div class="card-body">
           <h3 class="card-title">Sign up</h3>
-            <div class="form-group">
-              <label for="exampleInputEmail1">Email address</label>
-              <input type="email" class="form-control" id="exampleInputEmail1" placeholder="Email" name = "Email">
-              <span class="help-block" id="email-help">Must be in the form name@example.com.</span>
-            </div>
+            {{ macros.render_field(form.email, label_visible=false, placeholder='Email', type='email') }}
+            <small id="passwordHelpBlock" style="padding-top: .5px;"class="form-text text-muted">Your email must be in the form name@example.com</small>
             <div class="form-group">
               <label for="exampleInputPassword1">Password</label>
               <input type="password" class="form-control" id="exampleInputPassword1" placeholder="Password" name = "password">
