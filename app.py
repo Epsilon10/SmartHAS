@@ -10,7 +10,7 @@ import motor.motor_asyncio
 
 app = Sanic(__name__)
 #STATIC_FOLDER = os.path.join(os.path.dirname(__file__), 'static')
-client = motor.motor_asyncio.AsyncIOMotorClient('mongodb://oommenb:Manny12345@smarthas-shard-00-00-mxxin.mongodb.net:27017,smarthas-shard-00-01-mxxin.mongodb.net:27017,smarthas-shard-00-02-mxxin.mongodb.net:27017/test?ssl=true&replicaSet=SmartHAS-shard-0&authSource=admin')
+client = motor.motor_asyncio.AsyncIOMotorClient('mongodb://oommenb:<password>@smarthas-shard-00-00-mxxin.mongodb.net:27017,smarthas-shard-00-01-mxxin.mongodb.net:27017,smarthas-shard-00-02-mxxin.mongodb.net:27017/test?ssl=true&replicaSet=SmartHAS-shard-0&authSource=admin')
 db = client.user_details
 
 app.config['SECRET_KEY'] = 'top secret !!!'
