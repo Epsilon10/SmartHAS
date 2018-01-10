@@ -1,5 +1,5 @@
 from datetime import datetime
-from sanic import Sanic
+from sanic import Sanic, response
 from sanic.response import html, text, json, HTTPResponse
 from sanic_wtf import SanicForm
 from jinja2 import Environment, PackageLoader
@@ -8,7 +8,7 @@ import os
 from sanic_session import InMemorySessionInterface
 import motor.motor_asyncio
 import aiohttp
-from forms import SignUpForm
+from .forms.forms import SignUpForm
 app = Sanic(__name__)
 
 app.config['SECRET_KEY'] = 'top secret !!!'
@@ -18,11 +18,15 @@ session_interface = InMemorySessionInterface()
 connection_string = open('connection_string.txt').read()
 app.static('/static', './static')
 
+def template(tpl, **kwargs):
+    template = env.get_template(tpl)
+    return html(template.render(kwargs))
+
 @app.listener('before_server_start')
 async def server_begin(app, loop):
     app.session = aiohttp.ClientSession(loop=loop)
     motor_client = motor.motor_asyncio.AsyncIOMotorClient(str(connection_string).strip('\n'))
-    app.db.user_details.insert_one({'user':'details'})
+    app.db = motor_client.smarthas
 
 @app.listener('after_server_stop')
 async def server_end(app, loop):
@@ -32,14 +36,10 @@ async def server_end(app, loop):
 async def add_session_to_request(request):
     await session_interface.open(request)
 
-
 @app.middleware('response')
 async def save_session(request, response):
     await session_interface.save(request, response)
 
-def template(tpl, **kwargs):
-    template = env.get_template(tpl)
-    return html(template.render(kwargs))
 
 class LoginView(HTTPMethodView):
     async def get(self, request):
@@ -53,12 +53,8 @@ class SignUpView(HTTPMethodView):
         return template('signup.html', form=form)
 
     async def post(self, request):
-        email = request.form.get('Email')
-        data = await app.db.user_details.find_one({"Email":email})
-        if not data:
-            await app.db.user_details.update_one({'user':'details'}, {'$set': {'Email':email}}, upsert=True)
-            return redirect('/')
-        return text(request.form.get('Email'))
+        data =  {str(request.form.get('email')):{'password':str(request.form.get('password'))}}
+        await app.db.update_one({'user':'details'},{'$set': data}, upsert=True)
         
 app.add_route(SignUpView.as_view(), '/signup')
 
