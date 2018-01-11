@@ -8,7 +8,7 @@ import os
 from sanic_session import InMemorySessionInterface
 import motor.motor_asyncio
 import aiohttp
-from .forms.forms import SignUpForm
+from forms import SignUpForm
 app = Sanic(__name__)
 
 app.config['SECRET_KEY'] = 'top secret !!!'
