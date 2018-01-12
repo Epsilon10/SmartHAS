@@ -6,9 +6,10 @@ from jinja2 import Environment, PackageLoader
 from sanic.views import HTTPMethodView
 import os
 from sanic_session import InMemorySessionInterface
-import motor.motor_asyncio
+from motor.motor_asyncio import AsyncIOMotorClient
 import aiohttp
 from forms import SignUpForm
+from pprint import pprint
 app = Sanic(__name__)
 
 app.config['SECRET_KEY'] = 'top secret !!!'
@@ -25,8 +26,9 @@ def template(tpl, **kwargs):
 @app.listener('before_server_start')
 async def server_begin(app, loop):
     app.session = aiohttp.ClientSession(loop=loop)
-    motor_client = motor.motor_asyncio.AsyncIOMotorClient(str(connection_string).strip('\n'))
+    motor_client = AsyncIOMotorClient(host='127.0.0.1',port=27017)
     app.db = motor_client.smarthas
+    print('Connected to MongoDB')
 
 @app.listener('after_server_stop')
 async def server_end(app, loop):
@@ -54,7 +56,11 @@ class SignUpView(HTTPMethodView):
 
     async def post(self, request):
         data =  {str(request.form.get('email')):{'password':str(request.form.get('password'))}}
-        await app.db.update_one({'user':'details'},{'$set': data}, upsert=True)
+        try:
+            await app.db.user_details.update_one({'user':'details'},{'$set': data}, upsert=True)
+            return json({'success':True})
+        except Exception as e:
+            return text(str(e))
         
 app.add_route(SignUpView.as_view(), '/signup')
 
@@ -62,5 +68,3 @@ app.add_route(SignUpView.as_view(), '/signup')
 async def home(request):
     return text('hi')
 
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8000, debug=True)

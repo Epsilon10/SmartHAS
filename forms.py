@@ -8,16 +8,19 @@ from sanic import Sanic, response
 import asyncio
 import sys
 import motor.motor_asyncio
-
+from app import *
 def uniqueDB():
         message = 'An account already exists for this email'
         loop = asyncio.get_event_loop()
-        email_exists = loop.create_task(db_find()).result()
+        try:
+        	email_exists = loop.create_task(db_find()).result()
+        except Exception as e:
+        	print(str(e))
         if email_exists:
             raise ValidationError(message)
     
 async def db_find():
-    return await app.db.find({form.data:{'$exists':True}})
+    return await app.db.user_details.find_one({form.data:{'$exists':True}})
 
 class SignUpForm(SanicForm):
     email = EmailField('Email', validators=[DataRequired(), Email(), uniqueDB])
