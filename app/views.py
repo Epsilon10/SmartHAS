@@ -12,12 +12,15 @@ from app.forms import SignUpForm
 from pprint import pprint
 from app.models import open_db, unique_db
 from app import app
+import asyncio
+from app.websockets import Output
 
 app.config['SECRET_KEY'] = 'top secret !!!'
 
 env = Environment(loader=PackageLoader('app', 'templates'))
 session_interface = InMemorySessionInterface()
-app.static('/static', './static')
+s = serial.Serial('0.0.0.0:8000/feed', 9600)
+app.static('/static', './app/static')
 
 def template(tpl, **kwargs):
     template = env.get_template(tpl)
@@ -27,6 +30,7 @@ def template(tpl, **kwargs):
 async def server_begin(app, loop):
     app.session = aiohttp.ClientSession(loop=loop)
     await open_db('127.0.0.1',27017)
+
 
 @app.listener('after_server_stop')
 async def server_end(app, loop):
@@ -54,14 +58,20 @@ class SignUpView(HTTPMethodView):
 
     async def post(self, request):
         form = SignUpForm(request)
-        email = form.get('email')
-        email_exists = await unique_db(app.db.user_details, email)
-        if email_exists:
-            return json({'email':'False'})
-        if form.validate():
+        email = form.email.data
+        email_exists = await unique_db(app.db.user_details,email)
+        print ('Form validated: {}, Email Exists: {}'.format(form.validate(), email_exists))
+        if form.validate() and email_exists == False:
+            print('Validated')
             await app.db.user_details.update_one({'user':'details'},{'$set': data}, upsert=True)
             return json({'success':True})
         return template('signup.html', form=form)
+
+async def recieve_websocket_data(request):
+    coro = serial_asyncio.create_serial_connection(app.loop, Output, '0.0.0.0:8000/feed', baudrate=9600)
+    await coro
+    
+
         
 app.add_route(SignUpView.as_view(), '/signup')
 

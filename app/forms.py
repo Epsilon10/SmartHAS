@@ -8,7 +8,7 @@ from wtforms.fields.html5 import EmailField
 class SignUpForm(SanicForm):
     email = EmailField('Email', validators=[DataRequired(), Email()])
     password = PasswordField('Password', validators=[DataRequired(), Length(min=3, max=25), EqualTo('confirm_password', message='Passwords must match.')])
-    confirm_password = PasswordField('Confirm Password', validators=[DataRequired(), Length(min=3, max=25)])
+    confirm_password = PasswordField('Confirm Password', validators=[DataRequired()])
 
 
     
