@@ -1,4 +1,4 @@
-import asycio
+import asyncio
 import serial_asyncio
 
 class Output(asyncio.Protocol):
