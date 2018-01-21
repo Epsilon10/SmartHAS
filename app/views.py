@@ -13,7 +13,7 @@ from pprint import pprint
 from app.models import open_db, unique_db
 from app import app
 import asyncio
-
+import logging
 app.config['SECRET_KEY'] = 'top secret !!!'
 
 env = Environment(loader=PackageLoader('app', 'templates'))
@@ -26,8 +26,20 @@ def template(tpl, **kwargs):
 
 @app.listener('before_server_start')
 async def server_begin(app, loop):
+    app.logger = logging.getLogger(__name__)
+    app.logger.setLevel(logging.DEBUG)
+
+    handler = logging.FileHandler('smarthas.log')
+    handler.setLevel(logging.DEBUG)
+
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    handler.setFormatter(formatter)
+
+    app.logger.addHandler(handler)
+
     app.session = aiohttp.ClientSession(loop=loop)
     await open_db('127.0.0.1',27017)
+    app.logger.info('App running on 0.0.0.0')
 
 
 @app.listener('after_server_stop')
@@ -78,7 +90,10 @@ async def _signup(request):
         if form.validate():
             email = form.email.data
             email_exists = await unique_db(email)
-            return json({'success':'true'})
+            if not email_exists:
+                return json({'success':'true'})
+            else:
+                return json({'Email':'exiists'})
         return template('signup.html', form=form)
     return template('signup.html', form=SignUpForm())
 
