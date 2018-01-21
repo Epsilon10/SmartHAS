@@ -13,13 +13,11 @@ from pprint import pprint
 from app.models import open_db, unique_db
 from app import app
 import asyncio
-from app.websockets import Output
 
 app.config['SECRET_KEY'] = 'top secret !!!'
 
 env = Environment(loader=PackageLoader('app', 'templates'))
 session_interface = InMemorySessionInterface()
-s = serial.Serial('0.0.0.0:8000/feed', 9600)
 app.static('/static', './app/static')
 
 def template(tpl, **kwargs):
@@ -51,6 +49,7 @@ class LoginView(HTTPMethodView):
 
 app.add_route(LoginView.as_view(), '/login')
 
+'''
 class SignUpView(HTTPMethodView):
     async def get(self, request):
         form = SignUpForm()
@@ -59,21 +58,29 @@ class SignUpView(HTTPMethodView):
     async def post(self, request):
         form = SignUpForm(request)
         email = form.email.data
-        email_exists = await unique_db(app.db.user_details,email)
-        print ('Form validated: {}, Email Exists: {}'.format(form.validate(), email_exists))
-        if form.validate() and email_exists == False:
+        print(email)
+        email_exists = await unique_db(email)
+        print(form.errors)
+        print ('Form validated: {}, Email Exists: {}'.format(form.validate_on_submit(), email_exists))
+        if form.validate_on_submit() and email_exists == False:
             print('Validated')
             await app.db.user_details.update_one({'user':'details'},{'$set': data}, upsert=True)
             return json({'success':True})
         return template('signup.html', form=form)
-
-async def recieve_websocket_data(request):
-    coro = serial_asyncio.create_serial_connection(app.loop, Output, '0.0.0.0:8000/feed', baudrate=9600)
-    await coro
-    
-
         
 app.add_route(SignUpView.as_view(), '/signup')
+'''
+@app.route('/signup', methods=['GET', 'POST'])
+async def _signup(request):
+    form = SignUpForm(request.form)
+    if request.method == 'POST':
+        print(form.errors)
+        if form.validate():
+            email = form.email.data
+            email_exists = await unique_db(email)
+            return json({'success':'true'})
+        return template('signup.html', form=form)
+    return template('signup.html', form=SignUpForm())
 
 @app.route('/')
 async def home(request):

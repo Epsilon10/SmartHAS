@@ -6,6 +6,6 @@ async def open_db(host, port):
 	app.db = motor_client.smart_has
 	print(f'MongoDB connected on {host}:{port}')
 
-async def unique_db(collection,data):
-	return await collection.distinct(data) != []
+async def unique_db(data):
+	return len(await app.db.user_details.distinct(data)) != 0
 

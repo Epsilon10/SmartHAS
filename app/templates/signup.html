@@ -9,7 +9,8 @@
 
 </head>
 <body>
-<form name="SignupForm" style="padding-top: 50px;" method="post">
+<form name="SignupForm" style="padding-top: 50px;" role="form" method="POST">
+  <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
   <div class="row justify-content-center">
     <div class="col-lg-8 col-md-10 col-sm-12">
       <div class="card">
