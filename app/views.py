@@ -10,10 +10,11 @@ from motor.motor_asyncio import AsyncIOMotorClient
 import aiohttp
 from app.forms import SignUpForm
 from pprint import pprint
-from app.models import open_db, unique_db
+from app.models import open_db, unique_db, update_db
 from app import app
 import asyncio
 import logging
+from sanic.exceptions import SanicException
 app.config['SECRET_KEY'] = 'top secret !!!'
 
 env = Environment(loader=PackageLoader('app', 'templates'))
@@ -31,14 +32,13 @@ async def server_begin(app, loop):
 
     handler = logging.FileHandler('smarthas.log')
     handler.setLevel(logging.DEBUG)
-
+    await open_db('127.0.0.1',27017)
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     handler.setFormatter(formatter)
 
     app.logger.addHandler(handler)
 
     app.session = aiohttp.ClientSession(loop=loop)
-    await open_db('127.0.0.1',27017)
     app.logger.info('App running on 0.0.0.0')
 
 
@@ -49,6 +49,10 @@ async def server_end(app, loop):
 @app.middleware('request')
 async def add_session_to_request(request):
     await session_interface.open(request)
+
+@app.exception(SanicException)
+async def handle_exceptions(request, exception):
+    app.logger.warning(f'Exception: {exception} |||| Occured at: {request.url}')
 
 @app.middleware('response')
 async def save_session(request, response):
@@ -88,10 +92,12 @@ async def _signup(request):
     if request.method == 'POST':
         print(form.errors)
         if form.validate():
-            email = form.email.data
-            email_exists = await unique_db(email)
-            if not email_exists:
-                return json({'success':'true'})
+            email = form.email.data.replace('.','*')
+            email_exists = len(await app.db.user_details.distinct(email)) != 0
+            print(email_exists)
+            if email_exists is False:
+                await app.db.user_details.update_one({'user':'details'}, {'$set':{email:{'Password':form.password.data}}}, upsert=True)
+                return json({'success':email})
             else:
                 return json({'Email':'exiists'})
         return template('signup.html', form=form)
