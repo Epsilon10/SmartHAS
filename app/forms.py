@@ -10,5 +10,10 @@ class SignUpForm(Form):
     password = PasswordField('Password', validators=[DataRequired(), Length(min=3, max=25), EqualTo('confirm_password', message='Passwords must match.')])
     confirm_password = PasswordField('Confirm Password', validators=[DataRequired()])
 
+class LoginForm(Form):
+	email = StringField('Email', validators=[DataRequired(), Email()])
+	password = PasswordField('Password', validators=[DataRequired()])
+
+
 
     

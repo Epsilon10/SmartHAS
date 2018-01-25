@@ -35,3 +35,8 @@
 2018-01-22 10:48:06,419 - app.views - INFO - App running on 0.0.0.0
 2018-01-22 10:48:41,205 - app.views - INFO - App running on 0.0.0.0
 2018-01-22 10:49:11,108 - app.views - INFO - App running on 0.0.0.0
+2018-01-24 01:18:21,698 - app.views - INFO - App running on 0.0.0.0
+2018-01-24 01:18:38,553 - app.views - WARNING - Exception: Requested URL /favicon.ico not found |||| Occured at: http://0.0.0.0:8000/favicon.ico
+2018-01-24 01:18:38,560 - app.views - WARNING - Exception: Requested URL /favicon.ico not found |||| Occured at: http://0.0.0.0:8000/favicon.ico
+2018-01-24 01:18:38,564 - app.views - WARNING - Exception: Requested URL /favicon.ico not found |||| Occured at: http://0.0.0.0:8000/favicon.ico
+2018-01-24 12:18:21,222 - app.views - INFO - App running on 0.0.0.0

@@ -1,6 +1,6 @@
 from datetime import datetime
 from sanic import Sanic, response
-from sanic.response import html, text, json, HTTPResponse
+from sanic.response import html, text, json, HTTPResponse, redirect
 from sanic_wtf import SanicForm
 from jinja2 import Environment, PackageLoader
 from sanic.views import HTTPMethodView
@@ -15,11 +15,17 @@ from app import app
 import asyncio
 import logging
 from sanic.exceptions import SanicException
+from sanic_auth import Auth, User
+from wtforms import SubmitField, TextField, StringField, PasswordField, Form
+from wtforms.validators import DataRequired, Length, Email, EqualTo
+
 app.config['SECRET_KEY'] = 'top secret !!!'
 
 env = Environment(loader=PackageLoader('app', 'templates'))
 session_interface = InMemorySessionInterface()
 app.static('/static', './app/static')
+app.config.AUTH_LOGIN_ENDPOINT = 'login'
+auth = Auth(app)
 
 def template(tpl, **kwargs):
     template = env.get_template(tpl)
@@ -59,11 +65,6 @@ async def save_session(request, response):
     await session_interface.save(request, response)
 
 
-class LoginView(HTTPMethodView):
-    async def get(self, request):
-        return template('login.html')
-
-app.add_route(LoginView.as_view(), '/login')
 
 '''
 class SignUpView(HTTPMethodView):
@@ -102,6 +103,20 @@ async def _signup(request):
                 return json({'Email':'exiists'})
         return template('signup.html', form=form)
     return template('signup.html', form=SignUpForm())
+
+@app.route('/login', methods=['GET','POST'])
+async def _login(request):
+    form = LoginForm(request.form)
+    if request.method == 'POST':
+        if form.validate():
+            email = form.email.data.replace('.','*')
+            email_exists = len(await app.db.user_details.distinct(email)) != 0
+            if email_exists:
+                user = User(email=email)
+                auth.login_user(request, user)
+                return response.redirect('/')
+            return ValidationError()
+
 
 @app.route('/')
 async def home(request):

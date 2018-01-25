@@ -2,3 +2,4 @@ env/
 connection_string.txt
 __pycache__/
 .DS_Store
+smarthas.log
