@@ -18,6 +18,7 @@ from sanic.exceptions import SanicException
 from sanic_auth import Auth, User
 from wtforms import SubmitField, TextField, StringField, PasswordField, Form
 from wtforms.validators import DataRequired, Length, Email, EqualTo
+import asyncpg
 
 app.config['SECRET_KEY'] = 'top secret !!!'
 
@@ -25,6 +26,7 @@ env = Environment(loader=PackageLoader('app', 'templates'))
 session_interface = InMemorySessionInterface()
 app.static('/static', './app/static')
 app.config.AUTH_LOGIN_ENDPOINT = 'login'
+app.config.DNS = open('./config/dns.txt').read()
 auth = Auth(app)
 
 def template(tpl, **kwargs):
@@ -33,19 +35,8 @@ def template(tpl, **kwargs):
 
 @app.listener('before_server_start')
 async def server_begin(app, loop):
-    app.logger = logging.getLogger(__name__)
-    app.logger.setLevel(logging.DEBUG)
-
-    handler = logging.FileHandler('smarthas.log')
-    handler.setLevel(logging.DEBUG)
-    await open_db('127.0.0.1',27017)
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    handler.setFormatter(formatter)
-
-    app.logger.addHandler(handler)
-
     app.session = aiohttp.ClientSession(loop=loop)
-    app.logger.info('App running on 0.0.0.0')
+    app.db_pool = await asyncpg.create_pool(dns=app.config.DNS, user='moommen', command_timeout=60, loop=loop)
 
 
 @app.listener('after_server_stop')
@@ -115,7 +106,7 @@ async def _login(request):
                 user = User(email=email)
                 auth.login_user(request, user)
                 return response.redirect('/')
-            return ValidationError()
+            return ValidationError('')
 
 
 @app.route('/')
