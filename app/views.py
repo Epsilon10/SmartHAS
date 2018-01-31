@@ -26,7 +26,7 @@ env = Environment(loader=PackageLoader('app', 'templates'))
 session_interface = InMemorySessionInterface()
 app.static('/static', './app/static')
 app.config.AUTH_LOGIN_ENDPOINT = 'login'
-app.config.DNS = open('./config/dns.txt').read()
+app.config.DSN = open('./app/config/dns.txt').read()
 auth = Auth(app)
 
 def template(tpl, **kwargs):
@@ -36,20 +36,18 @@ def template(tpl, **kwargs):
 @app.listener('before_server_start')
 async def server_begin(app, loop):
     app.session = aiohttp.ClientSession(loop=loop)
-    app.db_pool = await asyncpg.create_pool(dns=app.config.DNS, user='moommen', command_timeout=60, loop=loop)
+    app.db_pool = await asyncpg.create_pool(dsn=app.config.DSN, user='moommen', command_timeout=60, loop=loop)
 
 
 @app.listener('after_server_stop')
 async def server_end(app, loop):
+    await app.db_pool.close()
     app.session.close()
 
 @app.middleware('request')
 async def add_session_to_request(request):
     await session_interface.open(request)
 
-@app.exception(SanicException)
-async def handle_exceptions(request, exception):
-    app.logger.warning(f'Exception: {exception} |||| Occured at: {request.url}')
 
 @app.middleware('response')
 async def save_session(request, response):
@@ -84,14 +82,19 @@ async def _signup(request):
     if request.method == 'POST':
         print(form.errors)
         if form.validate():
-            email = form.email.data.replace('.','*')
-            email_exists = len(await app.db.user_details.distinct(email)) != 0
-            print(email_exists)
-            if email_exists is False:
-                await app.db.user_details.update_one({'user':'details'}, {'$set':{email:{'Password':form.password.data}}}, upsert=True)
-                return json({'success':email})
-            else:
-                return json({'Email':'exiists'})
+            email = form.email.data
+            con = await app.db_pool.acquire()
+            async with con.transaction():
+                unique_email = await con.fetchval('SELECT * FROM User_Details WHERE Email = $1', email) == None
+            await con.release()
+            if unique_email:
+                con = await app.db_pool.acquire()
+                async with con.transaction():
+                    await con.execute('INSERT INTO User_Details (Email,Password) VALUES ($1, $2)', email, form.password.data)
+                await con.release()
+                #TODO: Sign in and other stuff + auth 
+                return template('home.html')
+            form.email.errors.append('An account with this email already exists!')
         return template('signup.html', form=form)
     return template('signup.html', form=SignUpForm())
 
