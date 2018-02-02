@@ -8,9 +8,9 @@ import os
 from sanic_session import InMemorySessionInterface
 from motor.motor_asyncio import AsyncIOMotorClient
 import aiohttp
-from app.forms import SignUpForm
+from app.forms import SignUpForm, LoginForm
 from pprint import pprint
-from app.models import open_db, unique_db, update_db
+from app.models import open_db_pool, fetch_row, fetch_val, fetch_many, execute_job
 from app import app
 import asyncio
 import logging
@@ -18,7 +18,6 @@ from sanic.exceptions import SanicException
 from sanic_auth import Auth, User
 from wtforms import SubmitField, TextField, StringField, PasswordField, Form
 from wtforms.validators import DataRequired, Length, Email, EqualTo
-import asyncpg
 
 app.config['SECRET_KEY'] = 'top secret !!!'
 
@@ -36,7 +35,7 @@ def template(tpl, **kwargs):
 @app.listener('before_server_start')
 async def server_begin(app, loop):
     app.session = aiohttp.ClientSession(loop=loop)
-    app.db_pool = await asyncpg.create_pool(dsn=app.config.DSN, user='moommen', command_timeout=60, loop=loop)
+    app.db_pool = await open_db_pool(app.config.DSN)
 
 
 @app.listener('after_server_stop')
@@ -53,29 +52,6 @@ async def add_session_to_request(request):
 async def save_session(request, response):
     await session_interface.save(request, response)
 
-
-
-'''
-class SignUpView(HTTPMethodView):
-    async def get(self, request):
-        form = SignUpForm()
-        return template('signup.html', form=form)
-
-    async def post(self, request):
-        form = SignUpForm(request)
-        email = form.email.data
-        print(email)
-        email_exists = await unique_db(email)
-        print(form.errors)
-        print ('Form validated: {}, Email Exists: {}'.format(form.validate_on_submit(), email_exists))
-        if form.validate_on_submit() and email_exists == False:
-            print('Validated')
-            await app.db.user_details.update_one({'user':'details'},{'$set': data}, upsert=True)
-            return json({'success':True})
-        return template('signup.html', form=form)
-        
-app.add_route(SignUpView.as_view(), '/signup')
-'''
 @app.route('/signup', methods=['GET', 'POST'])
 async def _signup(request):
     form = SignUpForm(request.form)
@@ -83,17 +59,11 @@ async def _signup(request):
         print(form.errors)
         if form.validate():
             email = form.email.data
-            con = await app.db_pool.acquire()
-            async with con.transaction():
-                unique_email = await con.fetchval('SELECT * FROM User_Details WHERE Email = $1', email) == None
-            await con.release()
+            unique_email = (await fetch_row('SELECT * FROM details WHERE email = $1', email)) == None
             if unique_email:
-                con = await app.db_pool.acquire()
-                async with con.transaction():
-                    await con.execute('INSERT INTO User_Details (Email,Password) VALUES ($1, $2)', email, form.password.data)
-                await con.release()
+                await execute_job('INSERT INTO details (email,password) VALUES ($1, $2)', email, form.password.data)
                 #TODO: Sign in and other stuff + auth 
-                return template('home.html')
+                return template('login.html')
             form.email.errors.append('An account with this email already exists!')
         return template('signup.html', form=form)
     return template('signup.html', form=SignUpForm())
@@ -103,13 +73,20 @@ async def _login(request):
     form = LoginForm(request.form)
     if request.method == 'POST':
         if form.validate():
-            email = form.email.data.replace('.','*')
-            email_exists = len(await app.db.user_details.distinct(email)) != 0
-            if email_exists:
-                user = User(email=email)
-                auth.login_user(request, user)
+            email = form.email.data
+            password = form.password.data
+            account_data = await fetch_row('SELECT * FROM details WHERE email = $1', email)
+            valid_account = False
+            if account_data is not None:
+                valid_account = account_data['email'] == email and account_data['password'] == password
+            if valid_account:
+                user = User(id=1,name=email)
+                auth.login_user(user, request)
                 return response.redirect('/')
-            return ValidationError('')
+            form.email.errors.append('An account does not exist with this email.')
+        return template('login.html', form=form)
+    return template('login.html', form=LoginForm())
+
 
 
 @app.route('/')
