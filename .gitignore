@@ -4,3 +4,4 @@ __pycache__/
 .DS_Store
 smarthas.log
 dns.txt
+.vscode/

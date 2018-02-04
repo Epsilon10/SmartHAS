@@ -10,12 +10,12 @@ from motor.motor_asyncio import AsyncIOMotorClient
 import aiohttp
 from app.forms import SignUpForm, LoginForm
 from pprint import pprint
-from app.models import open_db_pool, fetch_row, fetch_val, fetch_many, execute_job
+from app.models import open_db_pool, fetch_row, fetch_val, fetch_many, execute_job, User, fetch_user
 from app import app
 import asyncio
 import logging
 from sanic.exceptions import SanicException
-from sanic_auth import Auth, User
+from sanic_auth import Auth
 from wtforms import SubmitField, TextField, StringField, PasswordField, Form
 from wtforms.validators import DataRequired, Length, Email, EqualTo
 
@@ -59,11 +59,11 @@ async def _signup(request):
         print(form.errors)
         if form.validate():
             email = form.email.data
-            unique_email = (await fetch_row('SELECT * FROM details WHERE email = $1', email)) == None
-            if unique_email:
-                await execute_job('INSERT INTO details (email,password) VALUES ($1, $2)', email, form.password.data)
-                #TODO: Sign in and other stuff + auth 
-                return template('login.html')
+            user = await fetch_user(email)
+            if user is None:
+                user = User(name=email, password=form.password.data)
+                auth.login_user(request, user)
+                return template('home.html')
             form.email.errors.append('An account with this email already exists!')
         return template('signup.html', form=form)
     return template('signup.html', form=SignUpForm())
@@ -75,15 +75,12 @@ async def _login(request):
         if form.validate():
             email = form.email.data
             password = form.password.data
-            account_data = await fetch_row('SELECT * FROM details WHERE email = $1', email)
-            valid_account = False
-            if account_data is not None:
-                valid_account = account_data['email'] == email and account_data['password'] == password
-            if valid_account:
-                user = User(id=1,name=email)
-                auth.login_user(user, request)
-                return response.redirect('/')
-            form.email.errors.append('An account does not exist with this email.')
+            user = await fetch_user(name=email)
+            if user is not None:
+                if dict(await fetch_row('SELECT * FROM details WHERE email=$1', user.name))['password'] == password:
+                    auth.login_user(request,user)
+                    return template('home.html')
+            form.email.errors.append('Incorrect username or password')
         return template('login.html', form=form)
     return template('login.html', form=LoginForm())
 
@@ -92,4 +89,5 @@ async def _login(request):
 @app.route('/')
 async def home(request):
     return text('hi')
+
 
