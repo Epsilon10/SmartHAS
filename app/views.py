@@ -61,7 +61,7 @@ async def _signup(request):
             email = form.email.data
             user = await fetch_user(email)
             if user is None:
-                user = User(name=email, password=form.password.data)
+                user = await User.new_user(name=email, password=form.password.data)
                 auth.login_user(request, user)
                 return template('home.html')
             form.email.errors.append('An account with this email already exists!')

@@ -40,22 +40,19 @@ async def fetch_user(name):
 	if result is None:
 		return None
 	result = dict(result)
-	return User(name=result['email'], id=result['id'])
+	return User(id=result['id'], name=result['email'])
 	
 
 class User():
-	def __init__(self, name, id=None, password=None):
-		self.name = name
+	def __init__(self, id, name):
 		self.id = id
-		self.password = password
+		self.name = name
 	
 	@classmethod
-	async def new_user(name, id, password):
-		if password is None:
-			return cls(name, id)
+	async def new_user(cls,name,password):
 		await execute_job('INSERT INTO details (email,password) VALUES ($1,$2)', name, password)
-		id = dict(await fetch_row('SELECT * WHERE FROM details email=$1 AND password = $1', name, password))['id']
-		return cls(name,id)
+		id = dict(await fetch_row('SELECT * FROM details WHERE email=$1 AND password = $2', name, password))['id']
+		return cls(id, name)
 		
 
 		
