@@ -1,8 +1,6 @@
+{% import 'macros.html' as macros %}
 {% extends 'base.html' %}
-<!DOCTYPE html>
-<html>
-    <head>
-        <link rel="stylesheet" type="text/css" href="static/css/bootstrap.min.css">
-    </head>
-    
-</html>
+
+{% block body %}
+    {{ macros.render_nav(user) }}
+{% endblock %}

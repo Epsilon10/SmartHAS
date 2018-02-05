@@ -12,3 +12,19 @@
         {% endif %}
     </div>
 {%- endmacro %} 
+
+{% macro render_nav (user) -%}
+    <nav class="navbar navbar-expand-sm navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="/">SmartHAS</a>
+            <ul class="nav justify-content-end">
+                {% if user is not none %}
+                <a class="navbar-brand" href="/">{{ user.email }}</a>
+                {% else %}
+                <a class="navbar-brand" href="/">login</a>
+                {% endif %}
+            </ul>
+        </div>
+    </nav>
+{%- endmacro %}
+    

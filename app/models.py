@@ -35,24 +35,24 @@ async def execute_job(query, *args):
 		await con.execute(query, *args)
 	await app.db_pool.release(con)
 
-async def fetch_user(name):
-	result = await fetch_row('SELECT * FROM details WHERE email = $1', name)
+async def fetch_user(email):
+	result = await fetch_row('SELECT * FROM details WHERE email = $1', email)
 	if result is None:
 		return None
 	result = dict(result)
-	return User(id=result['id'], name=result['email'])
+	return User(id=result['id'], email=result['email'])
 	
 
 class User():
-	def __init__(self, id, name):
+	def __init__(self, id, email):
 		self.id = id
-		self.name = name
+		self.email = email
 	
 	@classmethod
-	async def new_user(cls,name,password):
-		await execute_job('INSERT INTO details (email,password) VALUES ($1,$2)', name, password)
-		id = dict(await fetch_row('SELECT * FROM details WHERE email=$1 AND password = $2', name, password))['id']
-		return cls(id, name)
+	async def new_user(cls,email,password):
+		await execute_job('INSERT INTO details (email,password) VALUES ($1,$2)', email, password)
+		id = dict(await fetch_row('SELECT * FROM details WHERE email=$1 AND password = $2', email, password))['id']
+		return cls(id, email)
 		
 
 		
