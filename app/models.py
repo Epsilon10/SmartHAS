@@ -1,5 +1,6 @@
 from app import app
 import asyncpg
+import hashlib, binascii
 
 async def open_db_pool(dsn):
 	return await asyncpg.create_pool(dsn=dsn, user='moommen', command_timeout=60, loop=app.loop)
@@ -50,8 +51,10 @@ class User():
 	
 	@classmethod
 	async def new_user(cls,email,password):
-		await execute_job('INSERT INTO details (email,password) VALUES ($1,$2)', email, password)
-		id = dict(await fetch_row('SELECT * FROM details WHERE email=$1 AND password = $2', email, password))['id']
+		hashed_pw = hashlib.pbkdf2_hmac('sha256', password.encode('utf-8'), b'salt', 20000)
+		hashed_pw = (binascii.hexlify(hashed_pw)).decode('utf-8')
+		await execute_job('INSERT INTO details (email,password) VALUES ($1,$2)', email, hashed_pw)
+		id = dict(await fetch_row('SELECT * FROM details WHERE email=$1 AND password = $2', email, hashed_pw))['id']
 		return cls(id, email)
 		
 

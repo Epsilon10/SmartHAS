@@ -19,15 +19,17 @@ from sanic_auth import Auth
 from wtforms import SubmitField, TextField, StringField, PasswordField, Form
 from wtforms.validators import DataRequired, Length, Email, EqualTo
 import inspect
-
+import ujson
+import hashlib, binascii
 app.config['SECRET_KEY'] = 'top secret !!!'
 
 env = Environment(loader=PackageLoader('app', 'templates'))
 session_interface = InMemorySessionInterface()
 app.static('/static', './app/static')
 app.config.AUTH_LOGIN_ENDPOINT = 'login'
-app.config.DSN = open('./app/config/dns.txt').read()
-auth = Auth(app)
+
+with open('./app/config/config.json') as f:
+    CONFIG = ujson.loads(f.read())
 
 def template(tpl, *args, **kwargs):
     template = env.get_template(tpl)
@@ -44,7 +46,7 @@ def template(tpl, *args, **kwargs):
 @app.listener('before_server_start')
 async def server_begin(app, loop):
     app.session = aiohttp.ClientSession(loop=loop)
-    app.db_pool = await open_db_pool(app.config.DSN)
+    app.db_pool = await open_db_pool(CONFIG.get('dns'))
 
 
 @app.listener('after_server_stop')
@@ -84,9 +86,11 @@ async def _login(request):
         if form.validate():
             email = form.email.data
             password = form.password.data
+            hashed_pw = hashlib.pbkdf2_hmac('sha256', password.encode('utf-8'), b'salt', 20000)
+            hashed_pw = (binascii.hexlify(hashed_pw)).decode('utf-8')
             user = await fetch_user(email=email)
             if user is not None:
-                if dict(await fetch_row('SELECT * FROM details WHERE email=$1', user.email))['password'] == password:
+                if dict(await fetch_row('SELECT * FROM details WHERE email=$1', user.email))['password'] == hashed_pw:
                     login_user(request,user)
                     return template('home.html', user=get_user(request))
             form.email.errors.append('Incorrect username or password')
@@ -98,11 +102,10 @@ def login_user(request, user):
     if request['session'].get('logged_in', False):
         return template('home.html', user=user)
     request['session']['logged_in'] = True
-    request['session']['user'] = dict(id=user.id, email=user.email)
+    request['session']['user'] = user
 
 def get_user(request):
-    details = request['session']['user']
-    return User(id=details['id'], email=details['email'])
+    return request['session']['user']
 
 
 def get_stack_variable(name):
