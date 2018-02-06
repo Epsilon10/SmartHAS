@@ -19,9 +19,14 @@
             <a class="navbar-brand" href="/">SmartHAS</a>
             <ul class="nav justify-content-end">
                 {% if user is not none %}
-                <a class="navbar-brand" href="/">{{ user.email }}</a>
+                    <a class="navbar-brand" href="/">{{ user.email }}</a>
                 {% else %}
-                <a class="navbar-brand" href="/">login</a>
+                    <form class="form-inline ml-auto">
+                        <a href="/login" class="btn btn-outline-primary">Log in</a>
+                        <p>&nbsp;</p>
+                        <p>&nbsp;</p>
+                        <a href="/signup" class="btn btn-outline-success">Sign Up</a>
+                    </form>
                 {% endif %}
             </ul>
         </div>

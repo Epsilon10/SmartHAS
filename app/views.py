@@ -1,12 +1,9 @@
 from datetime import datetime
 from sanic import Sanic, response
 from sanic.response import html, text, json, HTTPResponse, redirect
-from sanic_wtf import SanicForm
 from jinja2 import Environment, PackageLoader
-from sanic.views import HTTPMethodView
 import os
 from sanic_session import InMemorySessionInterface
-from motor.motor_asyncio import AsyncIOMotorClient
 import aiohttp
 from app.forms import SignUpForm, LoginForm
 from pprint import pprint
@@ -15,18 +12,20 @@ from app import app
 import asyncio
 import logging
 from sanic.exceptions import SanicException
-from sanic_auth import Auth
-from wtforms import SubmitField, TextField, StringField, PasswordField, Form
-from wtforms.validators import DataRequired, Length, Email, EqualTo
 import inspect
 import ujson
 import hashlib, binascii
+import discord
+from functools import wraps
+
 app.config['SECRET_KEY'] = 'top secret !!!'
 
 env = Environment(loader=PackageLoader('app', 'templates'))
 session_interface = InMemorySessionInterface()
 app.static('/static', './app/static')
 app.config.AUTH_LOGIN_ENDPOINT = 'login'
+
+show_deploy = False
 
 with open('./app/config/config.json') as f:
     CONFIG = ujson.loads(f.read())
@@ -47,6 +46,9 @@ def template(tpl, *args, **kwargs):
 async def server_begin(app, loop):
     app.session = aiohttp.ClientSession(loop=loop)
     app.db_pool = await open_db_pool(CONFIG.get('dns'))
+    app.webhook_url = CONFIG.get('webhook_url')
+    if app.webhook_url and show_deploy:
+        await app.session.post(app.webhook_url, json=format_embed())
 
 
 @app.listener('after_server_stop')
@@ -74,7 +76,7 @@ async def _signup(request):
             if user is None:
                 user = await User.new_user(email=email, password=form.password.data)
                 login_user(request, user)
-                return template('home.html', user=get_user(request))
+                return response.redirect(app.url_for('home'))
             form.email.errors.append('An account with this email already exists!')
         return template('signup.html', form=form)
     return template('signup.html', form=SignUpForm())
@@ -92,10 +94,32 @@ async def _login(request):
             if user is not None:
                 if dict(await fetch_row('SELECT * FROM details WHERE email=$1', user.email))['password'] == hashed_pw:
                     login_user(request,user)
-                    return template('home.html', user=get_user(request))
+                    return response.redirect('/home')
             form.email.errors.append('Incorrect username or password')
         return template('login.html', form=form)
     return template('login.html', form=LoginForm())
+
+
+@app.get('/logout')
+async def _logout(request):
+    request['session'].clear()
+    return text('logged out')
+
+@app.get('/home')
+async def home(request):
+    return template('home.html', user=get_user(request))
+
+def auth_required():
+    def decorator(f):
+        @wraps(f)
+        async def decorated_function(request, *args, **kwargs):
+            is_authorized = request['session'].get('logged_in', False)
+            if is_authorized:
+                resp = await f(request, *args, **kwargs)
+                return resp
+            return response.redirect('/login')
+        return decorated_function
+    return decorator
 
 
 def login_user(request, user):
@@ -105,8 +129,10 @@ def login_user(request, user):
     request['session']['user'] = user
 
 def get_user(request):
-    return request['session']['user']
-
+    try:
+        return request['session']['user']
+    except KeyError:
+        return None
 
 def get_stack_variable(name):
     stack = inspect.stack()
@@ -121,8 +147,17 @@ def get_stack_variable(name):
                 del frame
     finally:
         del stack
-    
-@app.route('/')
+
+def format_embed():
+    embed = discord.Embed()
+    embed.title = "[Success] App has been deployed!"
+    embed.color = discord.Color.blue()
+    embed.description = "https://github.com/Epsilon10/SmartHAS"
+    return {'embeds':[embed.to_dict()]}
+
+  
+@app.get('/')
+# @auth_required()  
 async def home(request):
     return text('hi')
 
