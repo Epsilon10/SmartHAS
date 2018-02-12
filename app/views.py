@@ -1,31 +1,45 @@
-from datetime import datetime
+import datetime
+
+## Sanic imports ##
 from sanic import Sanic, response
 from sanic.response import html, text, json, HTTPResponse, redirect
+from sanic.exceptions import SanicException
 from jinja2 import Environment, PackageLoader
-import os
-from sanic_session import InMemorySessionInterface
-import aiohttp
-from app.forms import SignUpForm, LoginForm
-from pprint import pprint
-from app.models import open_db_pool, fetch_row, fetch_val, fetch_many, execute_job, User, fetch_user
+
+## app imports ##
 from app import app
+from app.forms import SignUpForm, LoginForm
+from app.models import open_db_pool, fetch_row, fetch_val, fetch_many, execute_job, User, fetch_user, Redis
+
+## external imports ##
+from sanic_session import RedisSessionInterface
+import os
+import aiohttp
 import asyncio
 import logging
-from sanic.exceptions import SanicException
 import inspect
 import ujson
 import hashlib, binascii
 import discord
 from functools import wraps
+import time
+
+################
+## app config ##
+################
+
+redis = Redis()
 
 app.config['SECRET_KEY'] = 'top secret !!!'
-
 env = Environment(loader=PackageLoader('app', 'templates'))
-session_interface = InMemorySessionInterface()
+session_interface = RedisSessionInterface(redis.get_redis_pool, expiry=604800)
 app.static('/static', './app/static')
 app.config.AUTH_LOGIN_ENDPOINT = 'login'
 
 show_deploy = False
+
+
+
 
 with open('./app/config/config.json') as f:
     CONFIG = ujson.loads(f.read())
@@ -42,10 +56,16 @@ def template(tpl, *args, **kwargs):
     kwargs.update(globals())
     return html(template.render(*args,**kwargs))
 
+##############################################
+## app middleware for server backed session ##
+##############################################
+
 @app.listener('before_server_start')
 async def server_begin(app, loop):
     app.session = aiohttp.ClientSession(loop=loop)
     app.db_pool = await open_db_pool(CONFIG.get('dns'))
+    app.redis_pool = await redis.get_redis_pool()
+    #app.device_pool = 
     app.webhook_url = CONFIG.get('webhook_url')
     if app.webhook_url and show_deploy:
         await app.session.post(app.webhook_url, json=format_embed())
@@ -54,6 +74,7 @@ async def server_begin(app, loop):
 @app.listener('after_server_stop')
 async def server_end(app, loop):
     await app.db_pool.close()
+    await app.redis_pool.close()
     app.session.close()
 
 @app.middleware('request')
@@ -64,6 +85,10 @@ async def add_session_to_request(request):
 @app.middleware('response')
 async def save_session(request, response):
     await session_interface.save(request, response)
+
+###################
+## routes/views ##
+##################
 
 @app.route('/signup', methods=['GET', 'POST'])
 async def _signup(request):
@@ -99,7 +124,6 @@ async def _login(request):
         return template('login.html', form=form)
     return template('login.html', form=LoginForm())
 
-
 @app.get('/logout')
 async def _logout(request):
     request['session'].clear()
@@ -108,6 +132,15 @@ async def _logout(request):
 @app.get('/home')
 async def home(request):
     return template('home.html', user=get_user(request))
+
+@app.get('/')
+# @auth_required()  
+async def home(request):
+    return text('hi')
+
+####################
+## app utilities ##
+####################
 
 def auth_required():
     def decorator(f):
@@ -152,13 +185,15 @@ def format_embed():
     embed = discord.Embed()
     embed.title = "[Success] App has been deployed!"
     embed.color = discord.Color.blue()
-    embed.description = "https://github.com/Epsilon10/SmartHAS"
+    embed.timestamp = datetime.datetime.now()
+    embed.description = "[SmartHAS](https://github.com/Epsilon10/SmartHAS)" 
     return {'embeds':[embed.to_dict()]}
 
   
-@app.get('/')
-# @auth_required()  
-async def home(request):
-    return text('hi')
+@app.post('/devicedata')
+async def post_handler(request):
+    args = request.body.decode('utf-8')
+    return response.text(args)
+
 
 
