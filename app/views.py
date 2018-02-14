@@ -12,7 +12,7 @@ from app.forms import SignUpForm, LoginForm
 from app.models import open_db_pool, fetch_row, fetch_val, fetch_many, execute_job, User, fetch_user, Redis
 
 ## external imports ##
-from app.redis_session_interface import RedisSessionInterface
+from app.redis_session_interface import MyRedisInterface
 import os
 import aiohttp
 import asyncio
@@ -32,7 +32,7 @@ redis = Redis()
 
 app.config['SECRET_KEY'] = 'top secret !!!'
 env = Environment(loader=PackageLoader('app', 'templates'))
-session_interface = RedisSessionInterface(redis.get_redis_pool, expiry=604800)
+session_interface = MyRedisInterface(redis.get_redis_pool, expiry=604800)
 app.static('/static', './app/static')
 app.config.AUTH_LOGIN_ENDPOINT = 'login'
 
