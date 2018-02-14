@@ -12,7 +12,7 @@ from app.forms import SignUpForm, LoginForm
 from app.models import open_db_pool, fetch_row, fetch_val, fetch_many, execute_job, User, fetch_user, Redis
 
 ## external imports ##
-from sanic_session import RedisSessionInterface
+from app.redis_session_interface import RedisSessionInterface
 import os
 import aiohttp
 import asyncio
@@ -64,8 +64,8 @@ def template(tpl, *args, **kwargs):
 async def server_begin(app, loop):
     app.session = aiohttp.ClientSession(loop=loop)
     app.db_pool = await open_db_pool(CONFIG.get('dns'))
-    app.redis_pool = await redis.get_redis_pool()
     #app.device_pool = 
+    app.redis_pool = await redis.get_redis_pool()
     app.webhook_url = CONFIG.get('webhook_url')
     if app.webhook_url and show_deploy:
         await app.session.post(app.webhook_url, json=format_embed())
@@ -74,7 +74,8 @@ async def server_begin(app, loop):
 @app.listener('after_server_stop')
 async def server_end(app, loop):
     await app.db_pool.close()
-    await app.redis_pool.close()
+    app.redis_pool.close()
+    await app.redis_pool.wait_closed()
     app.session.close()
 
 @app.middleware('request')
@@ -162,10 +163,7 @@ def login_user(request, user):
     request['session']['user'] = user
 
 def get_user(request):
-    try:
-        return request['session']['user']
-    except KeyError:
-        return None
+    return request['session'].get('user')
 
 def get_stack_variable(name):
     stack = inspect.stack()
@@ -192,8 +190,15 @@ def format_embed():
   
 @app.post('/devicedata')
 async def post_handler(request):
-    args = request.body.decode('utf-8')
-    return response.text(args)
+    payload = request.json()
+    #TODO: validate this payload
+
+    await app.redis_pool.select(1)
+    email = payload['email']
+    data = payload['data'] 
+    await app.redis_pool.set(email,data, expire=86400)
+    await app.redis_pool.select(0)
+    return response.text(payload)
 
 
 

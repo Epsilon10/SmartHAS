@@ -1,7 +1,7 @@
 from app import app
 import asyncpg
 import hashlib, binascii
-import asyncio_redis
+import aioredis
 
 async def open_db_pool(dsn):
 	return await asyncpg.create_pool(dsn=dsn, user='moommen', command_timeout=60, loop=app.loop)
@@ -65,7 +65,8 @@ class Redis:
 
 	async def get_redis_pool(self):
 		if not self._pool:
-			self._pool = await asyncio_redis.Pool.create(host='127.0.0.1', port=6379, db=0, poolsize=10, loop=app.loop)
+			self._pool = await aioredis.create_redis_pool(('localhost',6379), loop=app.loop)
+		print(type(self._pool))
 		return self._pool
 	
 	
